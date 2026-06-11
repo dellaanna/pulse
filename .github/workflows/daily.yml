@@ -1,40 +1,30 @@
-name: Run Pulse Bot Daily
+name: Pulse - Daily Summary Bot
 
-# Controls when the action runs
 on:
   schedule:
-    # This runs the bot automatically every morning at 8:00 AM IST (2:30 AM UTC)
     - cron: '30 2 * * *'
-  workflow_dispatch: # This adds a button so you can run it manually anytime!
+  workflow_dispatch:
 
 jobs:
-  build-and-run:
+  run-pulse:
     runs-on: ubuntu-latest
-
     steps:
-    # Step 1: Download your code from the repository onto GitHub's cloud computer
-    - name: Checkout repository code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    # Step 2: Set up a clean environment running Python 3.11
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-    # Step 3: Read your requirements.txt file and install the requests module
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      - name: Install dependencies
+        run: pip install -r requirements.txt
 
-    # Step 4: Execute your script to fetch the weather/quote and print the output
-    - name: Run the bot script
-      run: python bot.py
+      - name: Run Pulse bot
+        run: python bot.py
 
-    # Step 5: Save the created daily_summary.txt file so you can download it later
-    - name: Save daily summary file as an artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: daily-pulse-summary
-        path: daily_summary.txt
+      - name: Upload summary as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-summary
+          path: daily_summary.txt
