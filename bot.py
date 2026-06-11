@@ -9,10 +9,9 @@ def get_weather(city="Thiruvananthapuram"):
     """Fetch today's weather as a one-line text summary."""
     url = f"https://wttr.in/{city}?format=3"
     try:
-        # --- HERE IS THE PATTERN AT WORK ---
         response = requests.get(url, timeout=10)
         response.raise_for_status()
-        return response.text.strip() 
+        return response.text.strip()
     except Exception as e:
         return f"Weather unavailable ({e})"
 
@@ -20,11 +19,9 @@ def get_quote():
     """Fetch a random motivational quote from ZenQuotes."""
     url = "https://zenquotes.io/api/random"
     try:
-        # --- HERE IS THE PATTERN AT WORK AGAIN ---
         response = requests.get(url, timeout=10)
         response.raise_for_status()
-        data = response.json()  # This converts the web text to a Python dictionary
-        
+        data = response.json()
         quote = data[0]["q"]
         author = data[0]["a"]
         return f'"{quote}" - {author}'
@@ -56,9 +53,9 @@ TODAY'S QUOTE
 def run():
     """Main entry point. Called by GitHub Actions."""
     summary = build_summary()
-    print(summary) 
+    print(summary)
     
-    # Save to a file that you can download later as an artifact
+    # Save to a file that can be downloaded as an artifact
     with open("daily_summary.txt", "w", encoding="utf-8") as f:
         f.write(summary)
         
