@@ -21,6 +21,12 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run Pulse bot
+        env:
+          # Replace the placeholders below with your actual Gmail address
+          EMAIL_SENDER: "dellaannag04@gmail.com"
+          EMAIL_RECEIVER: "dellaannag04@gmail.com"
+          # This pulls your secret password safely from your repository vault
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
         run: python bot.py
 
       - name: Upload summary as artifact
