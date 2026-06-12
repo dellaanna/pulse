@@ -28,7 +28,7 @@ def get_smart_weather(city="Thiruvananthapuram"):
         description = data["weather"][0]["description"]
         
         # Check criteria: Temp > 35 or condition matches "Rain"
-        is_heat_wave = temp > 35
+        is_heat_wave = temp > 10
         is_raining = "rain" in condition.lower() or "drizzle" in condition.lower()
         
         trigger_alert = is_heat_wave or is_raining
