@@ -2,7 +2,7 @@ name: Pulse - Daily Summary Bot
 
 on:
   schedule:
-    - cron: '0 5 * * *'
+    - cron: '15 8 * * *'
   workflow_dispatch:
 
 jobs:
