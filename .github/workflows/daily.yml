@@ -23,8 +23,8 @@ jobs:
       - name: Run Pulse bot
         env:
           # Replace the placeholders below with your actual Gmail address
-          EMAIL_SENDER: "your_gmail_here@gmail.com"
-          EMAIL_RECEIVER: "your_gmail_here@gmail.com"
+          EMAIL_SENDER: "dellaannag04@gmail.com"
+          EMAIL_RECEIVER: "dellaannag04@gmail.com"
           # This pulls your secret password safely from your repository vault
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
         run: python bot.py
