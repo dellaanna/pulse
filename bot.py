@@ -1,6 +1,6 @@
-# Pulse - Daily Summary Bot (HTML + Live Time Edition)
-# Fetches: weather (wttr.in) + a quote (zenquotes.io)
-# Runs: every day at 10:30 AM IST via GitHub Actions
+# Pulse - Smart Daily Summary Bot (OpenWeatherMap Edition)
+# Fetches: OpenWeatherMap JSON + ZenQuotes
+# Runs: Automatically via your GitHub Actions cron schedule
 
 import os
 import requests
@@ -9,14 +9,39 @@ from email.mime.text import MIMEText
 from datetime import datetime, timedelta
 
 def get_weather(city="Thiruvananthapuram"):
-    """Fetch today's weather as a one-line text summary."""
-    url = f"https://wttr.in/{city}?format=3"
+    """Fetch live data from OpenWeatherMap and determine alert status."""
+    api_key = os.environ.get("WEATHER_API_KEY")
+    if not api_key:
+        print("Weather API Key missing. Skipping real-time metrics evaluation.")
+        return None, False
+    
+    # Request metric units for automated Celsius conversion
+    url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
+    
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
-        return response.text.strip()
+        data = response.json()
+        
+        temp = data["main"]["temp"]
+        condition = data["weather"][0]["main"]
+        description = data["weather"][0]["description"]
+        
+        # LOGIC RULES: Temp > 10°C (Testing setting) OR condition matches Rain/Drizzle
+        is_heat_wave = temp > 10
+        is_raining = "rain" in condition.lower() or "drizzle" in condition.lower()
+        trigger_alert = is_heat_wave or is_raining
+        
+        weather_info = {
+            "temp": round(temp, 1),
+            "description": description.capitalize(),
+            "city": city,
+            "condition": condition
+        }
+        return weather_info, trigger_alert
     except Exception as e:
-        return f"Weather unavailable ({e})"
+        print(f"Error fetching OpenWeatherMap data: {e}")
+        return None, False
 
 def get_quote():
     """Fetch a random motivational quote from ZenQuotes."""
@@ -31,20 +56,16 @@ def get_quote():
     except Exception as e:
         return f"Quote unavailable ({e})", "System"
 
-def build_html_summary():
+def build_html_summary(weather, quote_text, quote_author):
     """Assemble the daily summary using clean HTML, CSS, and localized execution time."""
-    # Step 1: Grab current UTC time from the cloud server
     utc_now = datetime.utcnow()
-    
-    # Step 2: Shift the clock forward by 5 hours and 30 minutes to lock onto IST
     ist_now = utc_now + timedelta(hours=5, minutes=30)
     
-    # Step 3: Format the date and time beautifully (e.g., 10:30:15 AM)
     formatted_date = ist_now.strftime("%A, %d %B %Y")
     formatted_time = ist_now.strftime("%I:%M:%S %p IST")
     
-    weather = get_weather()
-    quote_text, quote_author = get_quote()
+    weather_display = f"{weather['temp']}°C, {weather['description']}" if weather else "Weather Offline"
+    city_name = weather['city'] if weather else "Thiruvananthapuram"
     
     html_content = f"""
     <!DOCTYPE html>
@@ -70,14 +91,14 @@ def build_html_summary():
     <body>
         <div class="card">
             <div class="header">
-                <h1>PULSE</h1>
+                <h1>PULSE WEATHER ALERT</h1>
                 <div class="date">{formatted_date}</div>
                 <div class="time">Generated at: {formatted_time}</div>
             </div>
             <div class="content">
                 <div class="section">
-                    <div class="section-title">Current Weather</div>
-                    <div class="weather-box">{weather}</div>
+                    <div class="section-title">Current Weather ({city_name})</div>
+                    <div class="weather-box">{weather_display}</div>
                 </div>
                 <div class="section">
                     <div class="section-title">Morning Inspiration</div>
@@ -107,7 +128,7 @@ def send_email(html_text):
         return
 
     msg = MIMEText(html_text, "html")
-    msg["Subject"] = f"✨ Your Daily Pulse Summary"
+    msg["Subject"] = f"⚠️ Pulse Critical Weather Alert"
     msg["From"] = sender
     msg["To"] = receiver
 
@@ -120,14 +141,26 @@ def send_email(html_text):
         print(f"Failed to send email: {e}")
 
 def run():
-    """Main entry point."""
-    html_summary = build_html_summary()
+    """Main execution entry point."""
+    print("Evaluating metrics from OpenWeatherMap endpoint...")
+    weather_info, trigger_alert = get_weather()
+    quote, author = get_quote()
     
+    # Generate HTML content structure
+    html_summary = build_html_summary(weather_info, quote, author)
+    
+    # Save a text configuration artifact log
     with open("daily_summary.txt", "w", encoding="utf-8") as f:
         f.write(html_summary)
         
-    send_email(html_summary)
-    print("Pulse ran successfully.")
+    # Check conditional branch logic before firing SMTP calls
+    if trigger_alert:
+        print("Condition matched (High temperature/Rain). Triggering dispatch routing...")
+        send_email(html_summary)
+    else:
+        print("Conditions standard. Alert email route bypassed for today.")
+        
+    print("Pulse script sequence complete.")
 
 if __name__ == "__main__":
     run()
