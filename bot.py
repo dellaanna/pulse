@@ -1,5 +1,5 @@
-# Pulse - Smart Weather Alert System
-# Uses OpenWeatherMap API to detect extreme heat or rain conditions
+# Pulse - Smart Weather Alert System (Dynamic Time Edition)
+# Uses OpenWeatherMap API + Generates Live IST Timestamp
 
 import os
 import requests
@@ -14,7 +14,6 @@ def get_smart_weather(city="Thiruvananthapuram"):
         print("Weather API Key missing!")
         return None, False
     
-    # URL configured to request metric units (Celsius)
     url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
     
     try:
@@ -22,12 +21,11 @@ def get_smart_weather(city="Thiruvananthapuram"):
         response.raise_for_status()
         data = response.json()
         
-        # Extract individual values from JSON structure
         temp = data["main"]["temp"]
-        condition = data["weather"][0]["main"] # e.g., "Rain", "Clear", "Clouds"
+        condition = data["weather"][0]["main"]
         description = data["weather"][0]["description"]
         
-        # Check criteria: Temp > 35 or condition matches "Rain"
+        # Check criteria: Using threshold 10 for instant testing validation
         is_heat_wave = temp > 10
         is_raining = "rain" in condition.lower() or "drizzle" in condition.lower()
         
@@ -40,23 +38,24 @@ def get_smart_weather(city="Thiruvananthapuram"):
             "is_raining": is_raining,
             "city": city
         }
-        
         return weather_info, trigger_alert
-        
     except Exception as e:
         print(f"Error fetching weather data: {e}")
         return None, False
 
 def build_alert_html(weather):
-    """Build an urgent styled HTML notice if severe conditions are met."""
+    """Build an urgent styled HTML notice with a dynamically generated clock."""
+    # CALCULATING LIVE TIME RIGHT AT EXECUTION
     utc_now = datetime.utcnow()
     ist_now = utc_now + timedelta(hours=5, minutes=30)
-    formatted_time = ist_now.strftime("%I:%M %p IST")
     
-    # Determine the status banner type
+    formatted_date = ist_now.strftime("%A, %d %B %Y")
+    formatted_time = ist_now.strftime("%I:%M:%S %p IST")
+    
     reason = "EXTREME TEMPERATURE ALERT" if weather["is_heat_wave"] else "RAIN FORECAST DETECTED"
     banner_color = "#dc3545" if weather["is_heat_wave"] else "#007bff"
     
+    # Injecting the live variables directly into the HTML structure
     html_content = f"""
     <!DOCTYPE html>
     <html>
@@ -65,7 +64,9 @@ def build_alert_html(weather):
         <style>
             body {{ font-family: 'Segoe UI', sans-serif; background-color: #fff5f5; margin: 0; padding: 20px; }}
             .card {{ max-width: 500px; margin: 0 auto; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); overflow: hidden; border: 1px solid #ffccd5; }}
-            .banner {{ background-color: {banner_color}; color: #ffffff; padding: 20px; text-align: center; font-weight: bold; font-size: 18px; letter-spacing: 1px; }}
+            .banner {{ background-color: {banner_color}; color: #ffffff; padding: 25px 20px; text-align: center; }}
+            .banner .title {{ font-weight: bold; font-size: 18px; letter-spacing: 1px; margin: 0; }}
+            .banner .timestamp {{ font-size: 12px; margin-top: 5px; opacity: 0.85; font-family: monospace; }}
             .content {{ padding: 25px 20px; text-align: center; }}
             .metric {{ font-size: 48px; font-weight: bold; color: #333333; margin: 10px 0; }}
             .desc {{ font-size: 18px; color: #666666; text-transform: capitalize; margin-bottom: 20px; }}
@@ -74,12 +75,14 @@ def build_alert_html(weather):
     </head>
     <body>
         <div class="card">
-            <div class="banner">⚠️ {reason}</div>
+            <div class="banner">
+                <div class="title">⚠️ {reason}</div>
+                <div class="timestamp">{formatted_date} | {formatted_time}</div>
+            </div>
             <div class="content">
                 <p class="location">Smart Monitoring Status for <b>{weather['city']}</b></p>
                 <div class="metric">{weather['temp']}°C</div>
                 <div class="desc">Condition: {weather['description']}</div>
-                <p style="color: #555; font-size: 13px;">Captured automatically at {formatted_time}</p>
             </div>
         </div>
     </body>
@@ -94,7 +97,7 @@ def send_email(html_text):
     receiver = os.environ.get("EMAIL_RECEIVER")
     
     msg = MIMEText(html_text, "html")
-    msg["Subject"] = "⚠️ CRITICAL WEATHER NOTICE: Action Required"
+    msg["Subject"] = "⚠️ CRITICAL WEATHER NOTICE: Pulse Alert Triggered"
     msg["From"] = sender
     msg["To"] = receiver
 
@@ -116,7 +119,7 @@ def run():
         alert_html = build_alert_html(weather_info)
         send_email(alert_html)
     elif weather_info:
-        print(f"Conditions normal ({weather_info['temp']}°C, {weather_info['description']}). No alert needed today.")
+        print(f"Conditions normal ({weather_info['temp']}°C). No alert needed.")
     else:
         print("Process aborted due to monitoring network failures.")
 
