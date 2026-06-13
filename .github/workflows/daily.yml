@@ -27,7 +27,7 @@ jobs:
       # ROUTE A: MORNING BRIEFING EMAIL RUNNER (7:00 AM IST)
       # ---------------------------------------------------
       - name: Execute 7:00 AM Dashboard Dispatcher
-        if: github.event_name != 'push'
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         env:
           RUN_MODE: "SUMMARY"
           EMAIL_SENDER: "dellaannag04@gmail.com"
