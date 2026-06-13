@@ -33,7 +33,7 @@ jobs:
           EMAIL_SENDER: "dellaannag04@gmail.com"
           EMAIL_RECEIVER: "dellaannag04@gmail.com"
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
-          WEATHER_API_KEY: "PASTE_YOUR_ACTUAL_OPENWEATHERMAP_KEY_STRING_HERE"
+          WEATHER_API_KEY: "d47ba91e5dbbe1a99ce57129ffc19579"
         run: python bot.py
 
       - name: Upload morning backup log
