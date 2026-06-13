@@ -2,7 +2,7 @@ name: Pulse - Daily Summary Bot
 
 on:
   schedule:
-    - cron: '30 13 * * *' # Scheduled for 7:00 PM IST (1:30 PM UTC) everyday
+    - cron: '30 1 * * *' # Fires exactly at 1:30 AM UTC / 7:00 AM IST every single morning
   workflow_dispatch:
 
 jobs:
@@ -22,14 +22,9 @@ jobs:
 
       - name: Run Pulse bot
         env:
-          # PLUG YOUR EMAIL IDS DIRECTLY HERE:
           EMAIL_SENDER: "dellaannag04@gmail.com"
           EMAIL_RECEIVER: "dellaannag04@gmail.com"
-          
-          # SECURE VAULT PASSWORD CALL:
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
-          
-          # BYPASS GLITCH: Paste your OpenWeatherMap key inside the quotes below
           WEATHER_API_KEY: "d47ba91e5dbbe1a99ce57129ffc19579"
         run: python bot.py
 
