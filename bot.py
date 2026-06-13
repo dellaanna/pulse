@@ -1,14 +1,18 @@
-# Pulse - Ultimate Automated Morning Briefing Dashboard (RSS Fail-Safe Edition)
-# Fetches: OpenWeatherMap JSON + ZenQuotes API + 3-Site Hybrid Feed Scraper
+# Pulse - Ultimate Automated Morning Briefing & Portfolio Synchronization Hub
+# Fetches: OpenWeatherMap JSON + ZenQuotes API + 3-Site News Scraper + GitHub REST API Engine
 
 import os
+import json
+import base64
 import requests
-import smtplib
 import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
 from email.mime.text import MIMEText
 from datetime import datetime, timedelta
 
+# ==========================================
+# MODULE 1: WEATHER & QUOTE ENGINES
+# ==========================================
 def get_smart_weather(city="Thiruvananthapuram"):
     """Fetch live data from OpenWeatherMap."""
     api_key = os.environ.get("WEATHER_API_KEY")
@@ -50,84 +54,68 @@ def get_quote():
     except Exception:
         return "Focus on building great systems daily.", "Engineering Mind"
 
+# ==========================================
+# MODULE 2: MULTI-SITE WORLD NEWS SCRAPER
+# ==========================================
 def scrape_news():
     """Extract top headlines using robust tag fallback paths and direct RSS streams."""
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
     articles = []
     current_time = datetime.now().strftime("%I:%M %p")
 
-    # --- SITE 1: TECHCRUNCH (Standard Layout Scraper) ---
+    # --- SITE 1: TECHCRUNCH ---
     try:
         tc_res = requests.get("https://techcrunch.com/", headers=headers, timeout=10)
         tc_soup = BeautifulSoup(tc_res.text, 'html.parser')
         tc_link = tc_soup.find("a", class_="loop-card__title-link")
         if tc_link:
             articles.append({
-                "source": "TechCrunch",
-                "title": tc_link.text.strip(),
-                "url": tc_link["href"],
-                "time": f"Live at {current_time}"
+                "source": "TechCrunch", "title": tc_link.text.strip(), "url": tc_link["href"], "time": f"Live at {current_time}"
             })
-    except Exception as e:
-        print(f"TechCrunch pull error: {e}")
+    except Exception:
+        pass
 
-    # --- SITE 2: THE VERGE (Fail-Safe Automated RSS XML Stream) ---
+    # --- SITE 2: THE VERGE (RSS Fail-Safe) ---
     try:
-        # Bypassing layouts by reading their clean system automation channel feed directly
         verge_feed = requests.get("https://www.theverge.com/rss/index.xml", headers=headers, timeout=10)
-        # Parse XML structure tree elements
         root = ET.fromstring(verge_feed.content)
-        # Atom feeds use namespaces; look for the first 'entry' card item block
         entry = root.find("{http://www.w3.org/2005/Atom}entry")
         if entry is not None:
             title = entry.find("{http://www.w3.org/2005/Atom}title").text
             link_node = entry.find("{http://www.w3.org/2005/Atom}link")
             url = link_node.attrib["href"] if link_node is not None else "https://www.theverge.com"
             articles.append({
-                "source": "The Verge",
-                "title": title.strip(),
-                "url": url,
-                "time": f"Live at {current_time}"
+                "source": "The Verge", "title": title.strip(), "url": url, "time": f"Live at {current_time}"
             })
-    except Exception as e:
-        print(f"The Verge RSS connection failure: {e}")
+    except Exception:
+        pass
 
-    # --- SITE 3: BBC NEWS (Fallback Layout Scraper) ---
+    # --- SITE 3: BBC NEWS ---
     try:
         bbc_res = requests.get("https://www.bbc.com/news", headers=headers, timeout=10)
         bbc_soup = BeautifulSoup(bbc_res.text, 'html.parser')
         bbc_link = bbc_soup.find("a", class_=lambda x: x and 'PromoLink' in x)
-        
         if not bbc_link:
             bbc_heading = bbc_soup.find("h2")
             if bbc_heading:
                 bbc_link = bbc_heading.find_parent("a") or bbc_heading.find("a")
-                
         if bbc_link:
             url = bbc_link.get("href", "")
             if url.startswith("/"):
                 url = "https://www.bbc.com" + url
-            title_text = bbc_link.text.strip()
-            if not title_text and bbc_link.find("h2"):
-                title_text = bbc_link.find("h2").text.strip()
-                
-            if title_text:
-                articles.append({
-                    "source": "BBC News",
-                    "title": title_text,
-                    "url": url,
-                    "time": f"Live at {current_time}"
-                })
-    except Exception as e:
-        print(f"BBC pull error: {e}")
+            title_text = bbc_link.text.strip() or bbc_link.find("h2").text.strip()
+            articles.append({
+                "source": "BBC News", "title": title_text, "url": url, "time": f"Live at {current_time}"
+            })
+    except Exception:
+        pass
 
     return articles
 
 def build_briefing_html(weather, quote_text, quote_author, news_list):
-    """Assemble an advanced, gorgeous morning briefing dashboard card layout."""
+    """Assemble an advanced morning briefing dashboard card layout."""
     utc_now = datetime.utcnow()
     ist_now = utc_now + timedelta(hours=5, minutes=30)
-    
     formatted_date = ist_now.strftime("%A, %d %B %Y")
     formatted_time = ist_now.strftime("%I:%M %p")
     
@@ -145,19 +133,16 @@ def build_briefing_html(weather, quote_text, quote_author, news_list):
     city_name = weather['city'] if weather else "Thiruvananthapuram"
 
     news_html_blocks = ""
-    if news_list:
-        for item in news_list:
-            news_html_blocks += f"""
-            <div class="news-item">
-                <span class="news-source">{item['source']}</span>
-                <span class="news-time">{item['time']}</span>
-                <a class="news-title" href="{item['url']}" target="_blank">{item['title']}</a>
-            </div>
-            """
-    else:
-        news_html_blocks = "<div class='news-item' style='border-left-color: #ef4444;'>⚠️ Scraping engines matches structural update downtime.</div>"
+    for item in news_list:
+        news_html_blocks += f"""
+        <div class="news-item">
+            <span class="news-source">{item['source']}</span>
+            <span class="news-time">{item['time']}</span>
+            <a class="news-title" href="{item['url']}" target="_blank">{item['title']}</a>
+        </div>
+        """
 
-    html_content = f"""
+    return f"""
     <!DOCTYPE html>
     <html>
     <head>
@@ -205,49 +190,131 @@ def build_briefing_html(weather, quote_text, quote_author, news_list):
                 </div>
             </div>
             <div class="footer">
-                Pulse Hub Engine V3.2 • Automated via GitHub 🎈
+                Pulse Hub Master Engine V4.0 • Built from Zero 🎈
             </div>
         </div>
     </body>
     </html>
     """
-    return html_content
 
 def send_email(html_text):
-    """Log into Gmail and send out the master briefing dashboard email."""
+    """Send out the master briefing dashboard email."""
     sender = os.environ.get("EMAIL_SENDER")
     password = os.environ.get("EMAIL_PASSWORD")
     receiver = os.environ.get("EMAIL_RECEIVER")
+    if not sender or not password:
+        return
     
     msg = MIMEText(html_text, "html")
     msg["Subject"] = "☀️ Your Complete Pulse Morning Briefing Dashboard"
     msg["From"] = sender
     msg["To"] = receiver
-
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(sender, password)
             server.send_message(msg)
-        print("Complete briefing dashboard emailed successfully!")
+        print("Briefing dashboard email sent cleanly!")
     except Exception as e:
-        print(f"SMTP Connection failure: {e}")
+        print(f"SMTP Error: {e}")
 
-def run():
-    """Main execution entry loop."""
-    print("Launching dynamic web scraping blocks...")
-    weather_info, trigger_alert = get_smart_weather()
-    quote, author = get_quote()
-    news_highlights = scrape_news()
+# ==========================================
+# NEW MODULE 3: PORTFOLIO SYNCHRONIZATION ENGINE
+# ==========================================
+def synchronize_portfolio():
+    """Fetch repositories via GitHub REST API and automatically update projects.json."""
+    token = os.environ.get("GITHUB_TOKEN")
+    repo_slug = os.environ.get("GITHUB_REPOSITORY") # Automatically tracks "username/repository"
     
-    print(f"Scraper processed {len(news_highlights)} source blocks successfully.")
-    
-    html_layout = build_briefing_html(weather_info, quote, author, news_highlights)
-    
-    with open("daily_summary.txt", "w", encoding="utf-8") as f:
-        f.write(html_layout)
+    if not token or not repo_slug:
+        print("GitHub Automation Engine offline: GITHUB_TOKEN missing.")
+        return
         
-    send_email(html_layout)
-    print("Briefing engine cycle closed out.")
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28"
+    }
+    
+    # Step 1: Scan repositories listed under your profile account node
+    print("Connecting to GitHub REST API Engine...")
+    url = "https://api.github.com/user/repos?type=public&sort=updated"
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        repos_data = response.json()
+        
+        projects_list = []
+        for repo in repos_data:
+            if repo["fork"]: # Skip forks to highlight only your original academic codes
+                continue
+            
+            project_node = {
+                "id": repo["id"],
+                "name": repo["name"].replace("-", " ").title(),
+                "description": repo["description"] or "An engineering project built from scratch.",
+                "url": repo["html_url"],
+                "stars": repo["stargazers_count"],
+                "language": repo["language"] or "Tech Stack Stacked",
+                "updated_at": repo["updated_at"].split("T")[0]
+            }
+            projects_list.append(project_node)
+            
+        print(f"Compiled database map for {len(projects_list)} original public projects.")
+        
+        # Step 2: Convert dictionary to styled JSON string block
+        json_content = json.dumps(projects_list, indent=2)
+        base64_bytes = base64.b64encode(json_content.encode("utf-8"))
+        base64_string = base64_bytes.decode("utf-8")
+        
+        # Step 3: Fetch file tracking SHA block from repository path mapping
+        target_path = "projects.json"
+        content_url = f"https://api.github.com/repos/{repo_slug}/contents/{target_path}"
+        
+        sha = None
+        check_res = requests.get(content_url, headers=headers, timeout=10)
+        if check_res.status_code == 200:
+            sha = check_res.json()["sha"]
+            
+        # Step 4: Write, sign, and commit update back into repository tree
+        payload = {
+            "message": "system(bot): automated portfolio projects.json tree sync [skip ci]",
+            "content": base64_string
+        }
+        if sha:
+            payload["sha"] = sha
+            
+        print("Committing dynamic structured asset array to main tree branch...")
+        upload_res = requests.put(content_url, headers=headers, json=payload, timeout=10)
+        upload_res.raise_for_status()
+        print("Portfolio tracking index asset successfully refreshed!")
+        
+    except Exception as e:
+        print(f"Portfolio Sync Operation crashed: {e}")
+
+# ==========================================
+# MASTER TASK AGGREGATOR CONTROLLER
+# ==========================================
+def run():
+    # Detect what event woke up the cloud virtual machine runner
+    run_mode = os.environ.get("RUN_MODE", "SUMMARY")
+    
+    if run_mode == "SYNC":
+        print("=== EXECUTING OPERATION: PORTFOLIO SYNCHRONIZATION ENGINE ===")
+        synchronize_portfolio()
+    else:
+        print("=== EXECUTING OPERATION: MORNING BRIEFING PAYLOAD SYSTEM ===")
+        weather_info, _ = get_smart_weather()
+        quote, author = get_quote()
+        news_highlights = scrape_news()
+        
+        html_layout = build_briefing_html(weather_info, quote, author, news_highlights)
+        
+        with open("daily_summary.txt", "w", encoding="utf-8") as f:
+            f.write(html_layout)
+            
+        send_email(html_layout)
+        
+    print("All tracking pipeline tasks concluded smoothly.")
 
 if __name__ == "__main__":
     run()
