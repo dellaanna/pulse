@@ -2,7 +2,7 @@ name: Pulse - Daily Summary Bot
 
 on:
   schedule:
-    - cron: '30 13 * * *' # Schedules code run every evening at 7:00 PM IST
+    - cron: '30 13 * * *' # Scheduled for 7:00 PM IST (1:30 PM UTC) everyday
   workflow_dispatch:
 
 jobs:
@@ -22,11 +22,15 @@ jobs:
 
       - name: Run Pulse bot
         env:
+          # PLUG YOUR EMAIL IDS DIRECTLY HERE:
           EMAIL_SENDER: "dellaannag04@gmail.com"
           EMAIL_RECEIVER: "dellaannag04@gmail.com"
+          
+          # SECURE VAULT PASSWORD CALL:
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
-          # Exposing the OpenWeatherMap API key token securely to the Python run env
-          WEATHER_API_KEY: ${{ secrets.WEATHER_API_KEY }}
+          
+          # BYPASS GLITCH: Paste your OpenWeatherMap key inside the quotes below
+          WEATHER_API_KEY: "d47ba91e5dbbe1a99ce57129ffc19579"
         run: python bot.py
 
       - name: Upload summary as artifact
