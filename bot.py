@@ -1,7 +1,10 @@
+# Pulse - Ultimate Automated Morning Briefing Dashboard (RSS Fail-Safe Edition)
+# Fetches: OpenWeatherMap JSON + ZenQuotes API + 3-Site Hybrid Feed Scraper
 
 import os
 import requests
 import smtplib
+import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
 from email.mime.text import MIMEText
 from datetime import datetime, timedelta
@@ -48,12 +51,12 @@ def get_quote():
         return "Focus on building great systems daily.", "Engineering Mind"
 
 def scrape_news():
-    """Scrape top headlines from BBC, TechCrunch, and The Verge with multi-tag fallback paths."""
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+    """Extract top headlines using robust tag fallback paths and direct RSS streams."""
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
     articles = []
     current_time = datetime.now().strftime("%I:%M %p")
 
-    # --- SITE 1: TECHCRUNCH ---
+    # --- SITE 1: TECHCRUNCH (Standard Layout Scraper) ---
     try:
         tc_res = requests.get("https://techcrunch.com/", headers=headers, timeout=10)
         tc_soup = BeautifulSoup(tc_res.text, 'html.parser')
@@ -66,36 +69,35 @@ def scrape_news():
                 "time": f"Live at {current_time}"
             })
     except Exception as e:
-        print(f"TechCrunch scrape issue: {e}")
+        print(f"TechCrunch pull error: {e}")
 
-    # --- SITE 2: THE VERGE ---
+    # --- SITE 2: THE VERGE (Fail-Safe Automated RSS XML Stream) ---
     try:
-        verge_res = requests.get("https://www.theverge.com/", headers=headers, timeout=10)
-        verge_soup = BeautifulSoup(verge_res.text, 'html.parser')
-        verge_h2 = verge_soup.find("h2")
-        verge_link = verge_h2.find("a") if verge_h2 else None
-        if verge_link:
-            url = verge_link["href"]
-            if url.startswith("/"):
-                url = "https://www.theverge.com" + url
+        # Bypassing layouts by reading their clean system automation channel feed directly
+        verge_feed = requests.get("https://www.theverge.com/rss/index.xml", headers=headers, timeout=10)
+        # Parse XML structure tree elements
+        root = ET.fromstring(verge_feed.content)
+        # Atom feeds use namespaces; look for the first 'entry' card item block
+        entry = root.find("{http://www.w3.org/2005/Atom}entry")
+        if entry is not None:
+            title = entry.find("{http://www.w3.org/2005/Atom}title").text
+            link_node = entry.find("{http://www.w3.org/2005/Atom}link")
+            url = link_node.attrib["href"] if link_node is not None else "https://www.theverge.com"
             articles.append({
                 "source": "The Verge",
-                "title": verge_link.text.strip(),
+                "title": title.strip(),
                 "url": url,
                 "time": f"Live at {current_time}"
             })
     except Exception as e:
-        print(f"The Verge scrape issue: {e}")
+        print(f"The Verge RSS connection failure: {e}")
 
-    # --- SITE 3: BBC NEWS ---
+    # --- SITE 3: BBC NEWS (Fallback Layout Scraper) ---
     try:
         bbc_res = requests.get("https://www.bbc.com/news", headers=headers, timeout=10)
         bbc_soup = BeautifulSoup(bbc_res.text, 'html.parser')
-        
-        # Primary Selector Check: Search for standard promo link wrapper nodes
         bbc_link = bbc_soup.find("a", class_=lambda x: x and 'PromoLink' in x)
         
-        # Alternate Selector Check: Search for generic structural anchors if specific class wrapper falls behind
         if not bbc_link:
             bbc_heading = bbc_soup.find("h2")
             if bbc_heading:
@@ -105,8 +107,6 @@ def scrape_news():
             url = bbc_link.get("href", "")
             if url.startswith("/"):
                 url = "https://www.bbc.com" + url
-                
-            # Extract readable headline block text
             title_text = bbc_link.text.strip()
             if not title_text and bbc_link.find("h2"):
                 title_text = bbc_link.find("h2").text.strip()
@@ -119,7 +119,7 @@ def scrape_news():
                     "time": f"Live at {current_time}"
                 })
     except Exception as e:
-        print(f"BBC Scrape failure: {e}")
+        print(f"BBC pull error: {e}")
 
     return articles
 
@@ -204,8 +204,8 @@ def build_briefing_html(weather, quote_text, quote_author, news_list):
                     </blockquote>
                 </div>
             </div>
-            . <div class="footer">
-                Pulse Hub Engine V3.1 • GitHub Actions 🎈
+            <div class="footer">
+                Pulse Hub Engine V3.2 • Automated via GitHub 🎈
             </div>
         </div>
     </body>
