@@ -1,4 +1,4 @@
-# Pulse - Ultimate Automated Morning Briefing & Portfolio Synchronization Hub
+# Pulse - Daily Summary Bot (Integrated Master Edition)
 # Fetches: OpenWeatherMap JSON + ZenQuotes API + 3-Site News Scraper + GitHub REST API Engine
 
 import os
@@ -218,12 +218,12 @@ def send_email(html_text):
         print(f"SMTP Error: {e}")
 
 # ==========================================
-# NEW MODULE 3: PORTFOLIO SYNCHRONIZATION ENGINE
+# MODULE 3: PORTFOLIO SYNCHRONIZATION ENGINE
 # ==========================================
 def synchronize_portfolio():
     """Fetch repositories via GitHub REST API and automatically update projects.json."""
     token = os.environ.get("GITHUB_TOKEN")
-    repo_slug = os.environ.get("GITHUB_REPOSITORY") # Automatically tracks "username/repository"
+    repo_slug = os.environ.get("GITHUB_REPOSITORY")
     
     if not token or not repo_slug:
         print("GitHub Automation Engine offline: GITHUB_TOKEN missing.")
@@ -235,7 +235,6 @@ def synchronize_portfolio():
         "X-GitHub-Api-Version": "2022-11-28"
     }
     
-    # Step 1: Scan repositories listed under your profile account node
     print("Connecting to GitHub REST API Engine...")
     url = "https://api.github.com/user/repos?type=public&sort=updated"
     try:
@@ -245,7 +244,7 @@ def synchronize_portfolio():
         
         projects_list = []
         for repo in repos_data:
-            if repo["fork"]: # Skip forks to highlight only your original academic codes
+            if repo["fork"]:
                 continue
             
             project_node = {
@@ -261,12 +260,10 @@ def synchronize_portfolio():
             
         print(f"Compiled database map for {len(projects_list)} original public projects.")
         
-        # Step 2: Convert dictionary to styled JSON string block
         json_content = json.dumps(projects_list, indent=2)
         base64_bytes = base64.b64encode(json_content.encode("utf-8"))
         base64_string = base64_bytes.decode("utf-8")
         
-        # Step 3: Fetch file tracking SHA block from repository path mapping
         target_path = "projects.json"
         content_url = f"https://api.github.com/repos/{repo_slug}/contents/{target_path}"
         
@@ -275,7 +272,6 @@ def synchronize_portfolio():
         if check_res.status_code == 200:
             sha = check_res.json()["sha"]
             
-        # Step 4: Write, sign, and commit update back into repository tree
         payload = {
             "message": "system(bot): automated portfolio projects.json tree sync [skip ci]",
             "content": base64_string
@@ -295,7 +291,6 @@ def synchronize_portfolio():
 # MASTER TASK AGGREGATOR CONTROLLER
 # ==========================================
 def run():
-    # Detect what event woke up the cloud virtual machine runner
     run_mode = os.environ.get("RUN_MODE", "SUMMARY")
     
     if run_mode == "SYNC":
