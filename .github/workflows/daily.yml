@@ -1,4 +1,4 @@
-name: Pulse - Multi-Automation Hub
+name: Pulse - Daily Summary Bot
 
 on:
   schedule:
@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  automation-router:
+  run-pulse:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code files
@@ -24,15 +24,16 @@ jobs:
         run: pip install -r requirements.txt
 
       # ---------------------------------------------------
-      # ROUTE A: MORNING BRIEFING EMAIL RUNNER
+      # ROUTE A: MORNING BRIEFING EMAIL RUNNER (7:00 AM IST)
       # ---------------------------------------------------
-      if: github.event_name != 'push'
       - name: Execute 7:00 AM Dashboard Dispatcher
+        if: github.event_name != 'push'
         env:
           RUN_MODE: "SUMMARY"
           EMAIL_SENDER: "dellaannag04@gmail.com"
           EMAIL_RECEIVER: "dellaannag04@gmail.com"
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          # Keep your real OpenWeatherMap key string pasted inside the quotes below:
           WEATHER_API_KEY: "d47ba91e5dbbe1a99ce57129ffc19579"
         run: python bot.py
 
@@ -44,12 +45,11 @@ jobs:
           path: daily_summary.txt
 
       # ---------------------------------------------------
-      # ROUTE B: INSTANT PORTFOLIO WEBSITE REBUILDER
+      # ROUTE B: INSTANT PORTFOLIO WEBSITE REBUILDER (ON PUSH)
       # ---------------------------------------------------
       - name: Execute Live Repository Portfolio Sync
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         env:
           RUN_MODE: "SYNC"
-          # GITHUB_TOKEN is a secure, built-in key provided automatically by GitHub Actions!
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python bot.py
