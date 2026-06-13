@@ -1,6 +1,3 @@
-# Pulse - Ultimate Automated Morning Briefing Dashboard
-# Fetches: OpenWeatherMap JSON + ZenQuotes API + 3-Site BeautifulSoup News Scraper
-# Runs: Scheduled via GitHub Actions daily
 
 import os
 import requests
@@ -51,8 +48,8 @@ def get_quote():
         return "Focus on building great systems daily.", "Engineering Mind"
 
 def scrape_news():
-    """Scrape top headlines from BBC, TechCrunch, and The Verge safely."""
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+    """Scrape top headlines from BBC, TechCrunch, and The Verge with multi-tag fallback paths."""
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
     articles = []
     current_time = datetime.now().strftime("%I:%M %p")
 
@@ -60,7 +57,6 @@ def scrape_news():
     try:
         tc_res = requests.get("https://techcrunch.com/", headers=headers, timeout=10)
         tc_soup = BeautifulSoup(tc_res.text, 'html.parser')
-        # Target the main loop block headings
         tc_link = tc_soup.find("a", class_="loop-card__title-link")
         if tc_link:
             articles.append({
@@ -76,7 +72,6 @@ def scrape_news():
     try:
         verge_res = requests.get("https://www.theverge.com/", headers=headers, timeout=10)
         verge_soup = BeautifulSoup(verge_res.text, 'html.parser')
-        # Target main group titles
         verge_h2 = verge_soup.find("h2")
         verge_link = verge_h2.find("a") if verge_h2 else None
         if verge_link:
@@ -96,21 +91,35 @@ def scrape_news():
     try:
         bbc_res = requests.get("https://www.bbc.com/news", headers=headers, timeout=10)
         bbc_soup = BeautifulSoup(bbc_res.text, 'html.parser')
-        # Target the top anchor block header element
-        bbc_heading = bbc_soup.find("h2")
-        bbc_link = bbc_heading.find_parent("a") if bbc_heading else None
-        if bbc_link and bbc_link.has_attr('href'):
-            url = bbc_link["href"]
+        
+        # Primary Selector Check: Search for standard promo link wrapper nodes
+        bbc_link = bbc_soup.find("a", class_=lambda x: x and 'PromoLink' in x)
+        
+        # Alternate Selector Check: Search for generic structural anchors if specific class wrapper falls behind
+        if not bbc_link:
+            bbc_heading = bbc_soup.find("h2")
+            if bbc_heading:
+                bbc_link = bbc_heading.find_parent("a") or bbc_heading.find("a")
+                
+        if bbc_link:
+            url = bbc_link.get("href", "")
             if url.startswith("/"):
                 url = "https://www.bbc.com" + url
-            articles.append({
-                "source": "BBC News",
-                "title": bbc_heading.text.strip(),
-                "url": url,
-                "time": f"Live at {current_time}"
-            })
+                
+            # Extract readable headline block text
+            title_text = bbc_link.text.strip()
+            if not title_text and bbc_link.find("h2"):
+                title_text = bbc_link.find("h2").text.strip()
+                
+            if title_text:
+                articles.append({
+                    "source": "BBC News",
+                    "title": title_text,
+                    "url": url,
+                    "time": f"Live at {current_time}"
+                })
     except Exception as e:
-        print(f"BBC Scrape issue: {e}")
+        print(f"BBC Scrape failure: {e}")
 
     return articles
 
@@ -122,7 +131,6 @@ def build_briefing_html(weather, quote_text, quote_author, news_list):
     formatted_date = ist_now.strftime("%A, %d %B %Y")
     formatted_time = ist_now.strftime("%I:%M %p")
     
-    # Dynamic styling matching rules
     if weather and weather["temp"] > 35:
         banner_title = "🔥 EXTREME HEAT BRIEFING 🔥"
         gradient = "linear-gradient(135deg, #F857A6, #FF5858)"
@@ -136,7 +144,6 @@ def build_briefing_html(weather, quote_text, quote_author, news_list):
     weather_display = f"{weather['temp']}°C, {weather['description']}" if weather else "Weather Metrics Standby"
     city_name = weather['city'] if weather else "Thiruvananthapuram"
 
-    # Generate the news item components block dynamically
     news_html_blocks = ""
     if news_list:
         for item in news_list:
@@ -148,7 +155,7 @@ def build_briefing_html(weather, quote_text, quote_author, news_list):
             </div>
             """
     else:
-        news_html_blocks = "<div class='news-box'>Scraping engines cycles on maintenance cooldown.</div>"
+        news_html_blocks = "<div class='news-item' style='border-left-color: #ef4444;'>⚠️ Scraping engines matches structural update downtime.</div>"
 
     html_content = f"""
     <!DOCTYPE html>
@@ -171,7 +178,6 @@ def build_briefing_html(weather, quote_text, quote_author, news_list):
             .news-source {{ font-size: 10px; font-weight: 800; background: #e2e8f0; padding: 2px 8px; border-radius: 10px; color: #4a5568; }}
             .news-time {{ font-size: 10px; color: #94a3b8; margin-left: 6px; font-weight: bold; }}
             .news-title {{ display: block; margin-top: 6px; font-size: 14px; font-weight: 700; color: #1e293b; text-decoration: none; line-height: 1.4; }}
-            .news-title:hover {{ color: #4facfe; }}
             .footer {{ background: #f8fafc; text-align: center; padding: 15px; font-size: 11px; color: #94a3b8; border-top: 2px solid #f1f5f9; font-weight: 600; }}
         </style>
     </head>
@@ -198,8 +204,8 @@ def build_briefing_html(weather, quote_text, quote_author, news_list):
                     </blockquote>
                 </div>
             </div>
-            <div class="footer">
-                Pulse Hub Engine V3 • GitHub Actions 🎈
+            . <div class="footer">
+                Pulse Hub Engine V3.1 • GitHub Actions 🎈
             </div>
         </div>
     </body>
@@ -214,7 +220,7 @@ def send_email(html_text):
     receiver = os.environ.get("EMAIL_RECEIVER")
     
     msg = MIMEText(html_text, "html")
-    msg["Subject"] = "☀️ Your Daily Pulse Morning Briefing Dashboard"
+    msg["Subject"] = "☀️ Your Complete Pulse Morning Briefing Dashboard"
     msg["From"] = sender
     msg["To"] = receiver
 
@@ -222,25 +228,26 @@ def send_email(html_text):
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(sender, password)
             server.send_message(msg)
-        print("Briefing dashboard emailed successfully!")
+        print("Complete briefing dashboard emailed successfully!")
     except Exception as e:
         print(f"SMTP Connection failure: {e}")
 
 def run():
     """Main execution entry loop."""
-    print("Launching data pipeline nodes...")
+    print("Launching dynamic web scraping blocks...")
     weather_info, trigger_alert = get_smart_weather()
     quote, author = get_quote()
     news_highlights = scrape_news()
+    
+    print(f"Scraper processed {len(news_highlights)} source blocks successfully.")
     
     html_layout = build_briefing_html(weather_info, quote, author, news_highlights)
     
     with open("daily_summary.txt", "w", encoding="utf-8") as f:
         f.write(html_layout)
         
-    # We always dispatch the email now because it includes your required morning headlines!
     send_email(html_layout)
-    print("Briefing execution loop complete.")
+    print("Briefing engine cycle closed out.")
 
 if __name__ == "__main__":
     run()
