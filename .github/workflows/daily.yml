@@ -1,18 +1,21 @@
-name: Pulse - Daily Summary Bot
+name: Pulse - Multi-Automation Hub
 
 on:
   schedule:
-    - cron: '30 1 * * *' # Fires exactly at 1:30 AM UTC / 7:00 AM IST every single morning
+    - cron: '30 1 * * *' # Event 1: Fires at 7:00 AM IST every single morning
+  push:
+    branches:
+      - main           # Event 2: Fires instantly on every single code push
   workflow_dispatch:
 
 jobs:
-  run-pulse:
+  automation-router:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout code files
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python Environment
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -20,16 +23,33 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run Pulse bot
+      # ---------------------------------------------------
+      # ROUTE A: MORNING BRIEFING EMAIL RUNNER
+      # ---------------------------------------------------
+      if: github.event_name != 'push'
+      - name: Execute 7:00 AM Dashboard Dispatcher
         env:
+          RUN_MODE: "SUMMARY"
           EMAIL_SENDER: "dellaannag04@gmail.com"
           EMAIL_RECEIVER: "dellaannag04@gmail.com"
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
-          WEATHER_API_KEY: "d47ba91e5dbbe1a99ce57129ffc19579"
+          WEATHER_API_KEY: "PASTE_YOUR_ACTUAL_OPENWEATHERMAP_KEY_STRING_HERE"
         run: python bot.py
 
-      - name: Upload summary as artifact
+      - name: Upload morning backup log
+        if: github.event_name != 'push'
         uses: actions/upload-artifact@v4
         with:
           name: daily-summary
           path: daily_summary.txt
+
+      # ---------------------------------------------------
+      # ROUTE B: INSTANT PORTFOLIO WEBSITE REBUILDER
+      # ---------------------------------------------------
+      - name: Execute Live Repository Portfolio Sync
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          RUN_MODE: "SYNC"
+          # GITHUB_TOKEN is a secure, built-in key provided automatically by GitHub Actions!
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python bot.py
